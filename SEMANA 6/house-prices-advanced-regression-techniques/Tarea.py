@@ -1,9 +1,9 @@
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import r2_score
-import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+import math
 
 print("1. Cargando los datos  ")
 datos_train = pd.read_csv('train.csv')
@@ -22,14 +22,8 @@ print(f"Dimensiones del conjunto combinado: {datos_combinados.shape}")
 
 print("\n3. variables importantes seleccionadas")
 variables_importantes = [
-    'GrLivArea',
-    'TotRmsAbvGrd',
-    'YearBuilt',
-    'OverallQual',
-    'GarageArea',
-    'FullBath'
+    'GrLivArea','TotRmsAbvGrd', 'YearBuilt', 'OverallQual', 'GarageArea','FullBath'
 ]
-
 print("\n4. Preparando los datos ")
 X_combinado = datos_combinados[variables_importantes].copy()
 
@@ -50,31 +44,29 @@ print("\n8. Entrenando el modelo...")
 modelo = LinearRegression()
 modelo.fit(X_train_temp, y_train_temp)
 
-print("\n9. Evaluando el modelo  ")
+print("\n Evaluando el modelo  ")
 predicciones_val = modelo.predict(X_val)
 r2 = r2_score(y_val, predicciones_val)
+rmse_val = math.sqrt(mean_squared_error(y_val, predicciones_val))
+mae_val = mean_absolute_error(y_val, predicciones_val)
 print(f"\nPrecisión del modelo (R²): {r2:.4f}")
+print(f"RMSE (validación): {rmse_val:.2f}")
+print(f"MAE (validación): {mae_val:.2f}")
 
-print("\nImportancia de cada variable:")
+print("\n Importancia de cada variable:")
 for variable, importancia in zip(variables_importantes, modelo.coef_):
     print(f"{variable}: {importancia:.2f}")
 
-print("\n11.  Gráfica de predicciones vs valores reales ")
-plt.figure(figsize=(10, 6))
-plt.scatter(y_val, predicciones_val, alpha=0.5)
-plt.plot([y_val.min(), y_val.max()], [y_val.min(), y_val.max()], 'r--', lw=2)
-plt.xlabel('Precios Reales ($)')
-plt.ylabel('Precios Predichos ($)')
-plt.title('Comparación entre Precios Reales y Predichos')
-plt.tight_layout()
-plt.savefig('predicciones.png')
-plt.close()
-
-print("\n12. Reentrenando modelo con todos los datos de entrenamiento ")
+print("\n Reentrenando modelo con todos los datos de entrenamiento ")
 modelo_final = LinearRegression()
 modelo_final.fit(X_train, y_train)
 
-print("\n13. Generando predicciones finales ")
+print("\n Validación cruzada sobre todo el conjunto de entrenamiento")
+cv_scores_mse = cross_val_score(LinearRegression(), X_train, y_train, cv=5, scoring='neg_mean_squared_error')
+cv_rmse = [math.sqrt(-s) for s in cv_scores_mse]
+print(f"RMSE CV (5 folds) - promedio: {np.mean(cv_rmse):.2f}, std: {np.std(cv_rmse):.2f}")
+
+print("\n  Generando predicciones finales ")
 predicciones_finales = modelo_final.predict(X_test_final)
 
 submission = pd.DataFrame({
